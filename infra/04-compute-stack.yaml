@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation template for deploying an EC2 instance.
+
+Parameters:
+  KeyName:
+    Description: SSH key name for accessing the EC2 instance.
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+  SecretsManagerAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AccessSecretsManager
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !ImportValue "SECRET-STACK-SecretArn"
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: SecretsManagerAccessRole
+
+  WalletWatchEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0bef12ee7bc073414
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SecurityGroupIds:
+        - !ImportValue "NETWORK-STACK-EC2SecurityGroupId"
+      SubnetId: !ImportValue "NETWORK-STACK-PublicSubnetId"
